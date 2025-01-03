@@ -1,0 +1,228 @@
+# Önce mysql master servisini başlat
+# - monitor_user ve monitor_password ile monitor kullanıcısı oluşturuyoruz.
+# - proxysql
+
+# ve ardından mysql slave servislerini oluşturuyoruz.
+# Sonra proxysql ve phpmyadmin servislerini oluşturuyoruz.
+
+services:
+  proxysql:
+    image: proxysql/proxysql:2.5.5
+    container_name: proxysql
+    hostname: proxysql
+    ports:
+      - "6032:6032"
+      - "6033:6033"
+    volumes:
+      - ./proxysql.cnf:/etc/proxysql.cnf:ro
+    healthcheck:
+      test: ["CMD", "test", "-f", "/var/lib/proxysql/proxysql.pid"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 30s
+    depends_on:
+      master:
+        condition: service_healthy
+
+  setup:
+    image: mysql:5.7
+    hostname: setup
+    container_name: setup
+    restart: "no"
+    entrypoint: /run.sh
+    volumes:
+      - ./run.sh:/run.sh
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+    depends_on:
+      master:
+        condition: service_healthy
+      proxysql:
+        condition: service_started
+      slave1:
+        condition: service_healthy
+      slave2:
+        condition: service_healthy
+      slave3:
+        condition: service_healthy
+
+  master:
+    image: mysql:5.7
+    hostname: master
+    container_name: master
+    restart: always
+    command: >
+      --defaults-file=/etc/mysql/my.cnf
+      --server-id=1
+    volumes:
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+      - master_data:/var/lib/mysql
+      - ./my.cnf:/etc/mysql/my.cnf:ro
+      - ./1_network.cnf:/etc/mysql/conf.d/1_network.cnf:ro
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_USER: repl_user
+      MYSQL_PASSWORD: repl_pass123
+      TZ: Europe/Istanbul
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-proot_password"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 30s
+
+  slave1:
+    image: mysql:5.7
+    hostname: slave1
+    container_name: slave1
+    restart: always
+    command: >
+      --defaults-file=/etc/mysql/my.cnf
+      --server-id=2
+    volumes:
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+      - ./my.cnf:/etc/mysql/my.cnf:ro
+      - ./1_network.cnf:/etc/mysql/conf.d/1_network.cnf:ro
+      - ./slave.cnf:/etc/mysql/conf.d/slave.cnf:ro
+      - slave1_data:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_USER: repl_user
+      MYSQL_PASSWORD: repl_pass123
+      TZ: Europe/Istanbul
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-proot_password"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 30s
+    depends_on:
+      master:
+        condition: service_healthy
+
+  slave2:
+    image: mysql:5.7
+    hostname: slave2
+    container_name: slave2
+    restart: always
+    command: >
+      --defaults-file=/etc/mysql/my.cnf
+      --server-id=3
+    volumes:
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+      - ./my.cnf:/etc/mysql/my.cnf:ro
+      - ./1_network.cnf:/etc/mysql/conf.d/1_network.cnf:ro
+      - ./slave.cnf:/etc/mysql/conf.d/slave.cnf:ro
+      - slave2_data:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_USER: repl_user
+      MYSQL_PASSWORD: repl_pass123
+      TZ: Europe/Istanbul
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-proot_password"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 30s
+    depends_on:
+      slave1:
+        condition: service_healthy
+
+  slave3:
+    image: mysql:5.7
+    hostname: slave3
+    container_name: slave3
+    restart: always
+    command: >
+      --defaults-file=/etc/mysql/my.cnf
+      --server-id=4
+    volumes:
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+      - ./my.cnf:/etc/mysql/my.cnf:ro
+      - ./1_network.cnf:/etc/mysql/conf.d/1_network.cnf:ro
+      - ./slave.cnf:/etc/mysql/conf.d/slave.cnf:ro
+      - slave3_data:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_USER: repl_user
+      MYSQL_PASSWORD: repl_pass123
+      TZ: Europe/Istanbul
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-proot_password"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 30s
+    depends_on:
+      slave2:
+        condition: service_healthy
+
+  redmine:
+    image: redmine:5.0.2
+    restart: unless-stopped
+    container_name: redmine
+    hostname: redmine
+    ports:
+      - "3000:3000"
+    environment:
+      REDMINE_DB_WAIT: 80
+      REDMINE_DB_POOL: 20
+      REDMINE_DB_HOST: proxysql
+      REDMINE_DB_PORT: 6033
+      REDMINE_DB_USERNAME: redmine
+      REDMINE_DB_PASSWORD: redmine_password
+      REDMINE_DB_DATABASE: redmine
+      TZ: Europe/Istanbul
+      RAILS_ENV: production
+      REDMINE_NO_DB_MIGRATE: "false"
+      REDMINE_LANG: tr
+      SECRET_KEY_BASE: "some_long_random_string_at_least_32_chars"
+      REDMINE_SESSION_LIFETIME: "86400"
+      REDMINE_SESSION_TIMEOUT: "0"
+      REDMINE_AUTOLOGIN: "true"
+    volumes:
+      - redmine_files:/usr/src/redmine/files
+      - redmine_db:/usr/src/redmine/db
+    command: >
+      bash -c "
+        rm -f /usr/src/redmine/tmp/pids/server.pid &&
+        echo 'production:
+          adapter: mysql2
+          database: redmine
+          host: proxysql
+          port: 6033
+          username: redmine
+          password: redmine_password
+          encoding: utf8mb4' > /usr/src/redmine/config/database.yml &&
+        bundle exec rake db:migrate &&
+        echo tr | bundle exec rake redmine:load_default_data &&
+        bundle exec rake generate_secret_token &&
+        echo 'production:
+          session_store: active_record_store
+          session_lifetime: 86400
+          session_timeout: 0
+          autologin: true' > config/configuration.yml &&
+        rails server -b 0.0.0.0"
+    depends_on:
+      proxysql:
+        condition: service_started
+      setup:
+        condition: service_completed_successfully
+
+volumes:
+  master_data:
+  slave1_data:
+  slave2_data:
+  slave3_data:
+  redmine_files:
+  redmine_db:
+
+networks:
+  default:
+    name: mysql_network
