@@ -1,10 +1,3 @@
-# Önce mysql master servisini başlat
-# - monitor_user ve monitor_password ile monitor kullanıcısı oluşturuyoruz.
-# - proxysql
-
-# ve ardından mysql slave servislerini oluşturuyoruz.
-# Sonra proxysql ve phpmyadmin servislerini oluşturuyoruz.
-
 services:
   proxysql:
     image: proxysql/proxysql:2.5.5
@@ -22,8 +15,8 @@ services:
       retries: 10
       start_period: 30s
     depends_on:
-      master:
-        condition: service_healthy
+      setup:
+        condition: service_completed_successfully
 
   setup:
     image: mysql:5.7
@@ -38,8 +31,6 @@ services:
     depends_on:
       master:
         condition: service_healthy
-      proxysql:
-        condition: service_started
       slave1:
         condition: service_healthy
       slave2:
@@ -95,10 +86,10 @@ services:
       TZ: Europe/Istanbul
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-proot_password"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-      start_period: 30s
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
     depends_on:
       master:
         condition: service_healthy
@@ -125,12 +116,12 @@ services:
       TZ: Europe/Istanbul
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-proot_password"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-      start_period: 30s
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
     depends_on:
-      slave1:
+      master:
         condition: service_healthy
 
   slave3:
@@ -155,12 +146,12 @@ services:
       TZ: Europe/Istanbul
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-proot_password"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-      start_period: 30s
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
     depends_on:
-      slave2:
+      master:
         condition: service_healthy
 
   redmine:
@@ -173,8 +164,8 @@ services:
     environment:
       REDMINE_DB_WAIT: 80
       REDMINE_DB_POOL: 20
-      REDMINE_DB_HOST: proxysql
-      REDMINE_DB_PORT: 6033
+      REDMINE_DB_HOST: master
+      REDMINE_DB_PORT: 3306
       REDMINE_DB_USERNAME: redmine
       REDMINE_DB_PASSWORD: redmine_password
       REDMINE_DB_DATABASE: redmine
@@ -192,6 +183,25 @@ services:
     command: >
       bash -c "
         rm -f /usr/src/redmine/tmp/pids/server.pid &&
+        # İlk olarak master'a bağlan ve migration'ları yap
+        echo 'production:
+          adapter: mysql2
+          database: redmine
+          host: master
+          port: 3306
+          username: redmine
+          password: redmine_password
+          encoding: utf8mb4' > /usr/src/redmine/config/database.yml &&
+        bundle exec rake db:migrate &&
+        echo tr | bundle exec rake redmine:load_default_data &&
+        bundle exec rake generate_secret_token &&
+        # Konfigurasyon dosyasını oluştur
+        echo 'production:
+          session_store: active_record_store
+          session_lifetime: 86400
+          session_timeout: 0
+          autologin: true' > config/configuration.yml &&
+        # Şimdi ProxySQL'e geç
         echo 'production:
           adapter: mysql2
           database: redmine
@@ -200,14 +210,6 @@ services:
           username: redmine
           password: redmine_password
           encoding: utf8mb4' > /usr/src/redmine/config/database.yml &&
-        bundle exec rake db:migrate &&
-        echo tr | bundle exec rake redmine:load_default_data &&
-        bundle exec rake generate_secret_token &&
-        echo 'production:
-          session_store: active_record_store
-          session_lifetime: 86400
-          session_timeout: 0
-          autologin: true' > config/configuration.yml &&
         rails server -b 0.0.0.0"
     depends_on:
       proxysql:

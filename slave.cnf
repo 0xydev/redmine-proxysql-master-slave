@@ -5,13 +5,15 @@ relay-log=slave-relay-bin
 log-slave-updates=1
 master-info-repository=TABLE
 relay-log-info-repository=TABLE
-read_only=ON
-super_read_only=ON
 
 # GTID Settings
 gtid_mode=ON
 enforce_gtid_consistency=ON
 binlog_format=ROW
+
+# Read-only settings (will be set after setup)
+# read_only=ON
+# super_read_only=ON
 
 # Skip auto start slave
 skip-slave-start=1

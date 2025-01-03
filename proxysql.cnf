@@ -55,6 +55,7 @@ mysql_servers =
         compression=0
         max_connections=200
         max_replication_lag=5
+        read_only=1
     },
     {
         address="slave2"
@@ -65,6 +66,7 @@ mysql_servers =
         compression=0
         max_connections=200
         max_replication_lag=5
+        read_only=1
     },
     {
         address="slave3"
@@ -75,6 +77,7 @@ mysql_servers =
         compression=0
         max_connections=200
         max_replication_lag=5
+        read_only=1
     }
 )
 
@@ -85,8 +88,8 @@ mysql_users =
         password = "redmine_password"
         default_hostgroup = 10
         max_connections=1000
-        default_schema="redmine"
         active = 1
+        transaction_persistent=1
     }
 )
 
@@ -95,21 +98,14 @@ mysql_query_rules =
     {
         rule_id=1
         active=1
-        match_pattern="^SELECT .* FOR UPDATE$"
-        destination_hostgroup=10
+        match_digest="^SELECT.*"
+        destination_hostgroup=20
         apply=1
     },
     {
         rule_id=2
         active=1
-        match_pattern="^SELECT"
-        destination_hostgroup=20
-        apply=1
-    },
-    {
-        rule_id=3
-        active=1
-        match_pattern=".*"
+        match_digest="^INSERT.*|^UPDATE.*|^DELETE.*|^CREATE.*|^ALTER.*|^DROP.*|^TRUNCATE.*"
         destination_hostgroup=10
         apply=1
     }
@@ -120,6 +116,10 @@ mysql_replication_hostgroups =
     {
         writer_hostgroup=10
         reader_hostgroup=20
-        comment="master-slave cluster"
+        comment="master-slave"
+        active=1
+        max_writers=1
+        writer_is_also_reader=0
+        max_transactions_behind=100
     }
-) 
+)
