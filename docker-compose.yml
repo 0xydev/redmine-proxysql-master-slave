@@ -9,11 +9,12 @@ services:
     volumes:
       - ./proxysql.cnf:/etc/proxysql.cnf:ro
     healthcheck:
-      test: ["CMD", "test", "-f", "/var/lib/proxysql/proxysql.pid"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-      start_period: 30s
+      test: >
+        /bin/bash -c 'mysql -h127.0.0.1 -P6032 -uadmin -padmin --prompt="ProxySQL Admin>" -e "SELECT 1" || exit 1'
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
     depends_on:
       setup:
         condition: service_completed_successfully
@@ -183,7 +184,6 @@ services:
     command: >
       bash -c "
         rm -f /usr/src/redmine/tmp/pids/server.pid &&
-        # İlk olarak master'a bağlan ve migration'ları yap
         echo 'production:
           adapter: mysql2
           database: redmine
@@ -192,16 +192,15 @@ services:
           username: redmine
           password: redmine_password
           encoding: utf8mb4' > /usr/src/redmine/config/database.yml &&
+        bundle exec rake db:create &&
         bundle exec rake db:migrate &&
         echo tr | bundle exec rake redmine:load_default_data &&
         bundle exec rake generate_secret_token &&
-        # Konfigurasyon dosyasını oluştur
         echo 'production:
           session_store: active_record_store
           session_lifetime: 86400
           session_timeout: 0
           autologin: true' > config/configuration.yml &&
-        # Şimdi ProxySQL'e geç
         echo 'production:
           adapter: mysql2
           database: redmine

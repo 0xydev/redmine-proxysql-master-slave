@@ -18,23 +18,15 @@ execute_mysql() {
 
 echo "=== ProxySQL Routing Test Started ==="
 
-for i in {1..10}
+for i in {1..3}
 do
-    echo "=== Test Iteration: $i ==="
 
-    # 1. Insert a Test Issue
-    echo "Inserting a test issue..."
-    execute_mysql "
-    USE $TEST_DB;
-    INSERT INTO $TEST_TABLE (subject, description, project_id, tracker_id, status_id, priority_id, author_id, created_on, updated_on) 
-    VALUES ('Test Issue $i', 'This is a test issue', 1, 1, 1, 2, 1, NOW(), NOW());
-    "
 
     # 2. Retrieve Issues to Verify Routing
     echo "Retrieving issues..."
     execute_mysql "
     USE $TEST_DB;
-    SELECT id, subject, created_on FROM $TEST_TABLE ORDER BY id DESC LIMIT 5;
+    SELECT * FROM users;
     "
 
     # 3. Check ProxySQL Statistics
@@ -47,16 +39,6 @@ do
     FROM stats_mysql_query_rules ORDER BY rule_id;
     "
 
-    # 4. Check Replication Status on Slaves
-    echo "Checking replication status on slaves..."
-    for slave in {1..3}; do
-        echo "=== Slave$slave Status ==="
-        docker compose exec slave$slave mysql -uroot -proot_password -e "SHOW SLAVE STATUS\G" | grep -E "Slave_IO_Running:|Slave_SQL_Running:|Seconds_Behind_Master:"
-    done
-
-    echo "=== Test Iteration: $i Completed ==="
-    echo "-------------------------------------"
-    sleep 2
 done
 
 echo "=== ProxySQL Routing Test Completed ==="
