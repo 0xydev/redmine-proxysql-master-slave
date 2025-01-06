@@ -26,6 +26,7 @@ services:
     entrypoint: /run.sh
     volumes:
       - ./run.sh:/run.sh
+      - ./redmine-dump.sql:/redmine-dump.sql:ro
     environment:
       MYSQL_ROOT_PASSWORD: root_password
     depends_on:
@@ -177,6 +178,7 @@ services:
     container_name: redmine1
     hostname: redmine1
     restart: unless-stopped
+    entrypoint: ["/bin/sh", "-c", "rm -f /usr/src/redmine/config/initializers/migrations.rb && bundle exec rails server -u puma -b 0.0.0.0"]
     environment:
       REDMINE_DB_HOST: proxysql
       REDMINE_DB_PORT: 6033
@@ -188,12 +190,19 @@ services:
       TZ: Europe/Istanbul
       RAILS_ENV: production
       REDMINE_LANG: tr
+      SKIP_DATABASE_MIGRATION: "true"
+      RAILS_SKIP_MIGRATIONS: "true"
+      SKIP_RAKE_TASKS: "true"
+      DISABLE_DATABASE_ENVIRONMENT_CHECK: "1"
+      SECRET_KEY_BASE: "some-really-really-long-secret-key-base-123456789"
     volumes:
       - ./volume/redmine1/redmine-plugins:/usr/src/redmine/plugins
       - ./volume/redmine1/repos:/home/redmine/repos
       - ./volume/redmine1/redmine-themes:/usr/src/redmine/public/themes
       - ./volume/redmine1/redmine-data:/usr/src/redmine/files
       - ./volume/redmine1/redmine-logs/redmine:/var/log/redmine
+      - ./database.yml:/usr/src/redmine/config/database.yml:ro
+      - ./configuration.yml:/usr/src/redmine/config/configuration.yml:ro
     depends_on:
       proxysql:
         condition: service_healthy
@@ -205,6 +214,7 @@ services:
     container_name: redmine2
     hostname: redmine2
     restart: unless-stopped
+    entrypoint: ["/bin/sh", "-c", "rm -f /usr/src/redmine/config/initializers/migrations.rb && bundle exec rails server -u puma -b 0.0.0.0"]
     environment:
       REDMINE_DB_HOST: proxysql
       REDMINE_DB_PORT: 6033
@@ -216,12 +226,19 @@ services:
       TZ: Europe/Istanbul
       RAILS_ENV: production
       REDMINE_LANG: tr
+      SKIP_DATABASE_MIGRATION: "true"
+      RAILS_SKIP_MIGRATIONS: "true"
+      SKIP_RAKE_TASKS: "true"
+      DISABLE_DATABASE_ENVIRONMENT_CHECK: "1"
+      SECRET_KEY_BASE: "some-really-really-long-secret-key-base-123456789"
     volumes:
       - ./volume/redmine2/redmine-plugins:/usr/src/redmine/plugins
       - ./volume/redmine2/repos:/home/redmine/repos
       - ./volume/redmine2/redmine-themes:/usr/src/redmine/public/themes
       - ./volume/redmine2/redmine-data:/usr/src/redmine/files
       - ./volume/redmine2/redmine-logs/redmine:/var/log/redmine
+      - ./database.yml:/usr/src/redmine/config/database.yml:ro
+      - ./configuration.yml:/usr/src/redmine/config/configuration.yml:ro
     depends_on:
       proxysql:
         condition: service_healthy
@@ -233,6 +250,7 @@ services:
     container_name: redmine3
     hostname: redmine3
     restart: unless-stopped
+    entrypoint: ["/bin/sh", "-c", "rm -f /usr/src/redmine/config/initializers/migrations.rb && bundle exec rails server -u puma -b 0.0.0.0"]
     environment:
       REDMINE_DB_HOST: proxysql
       REDMINE_DB_PORT: 6033
@@ -244,12 +262,19 @@ services:
       TZ: Europe/Istanbul
       RAILS_ENV: production
       REDMINE_LANG: tr
+      SKIP_DATABASE_MIGRATION: "true"
+      RAILS_SKIP_MIGRATIONS: "true"
+      SKIP_RAKE_TASKS: "true"
+      DISABLE_DATABASE_ENVIRONMENT_CHECK: "1"
+      SECRET_KEY_BASE: "some-really-really-long-secret-key-base-123456789"
     volumes:
       - ./volume/redmine3/redmine-plugins:/usr/src/redmine/plugins
       - ./volume/redmine3/repos:/home/redmine/repos
       - ./volume/redmine3/redmine-themes:/usr/src/redmine/public/themes
       - ./volume/redmine3/redmine-data:/usr/src/redmine/files
       - ./volume/redmine3/redmine-logs/redmine:/var/log/redmine
+      - ./database.yml:/usr/src/redmine/config/database.yml:ro
+      - ./configuration.yml:/usr/src/redmine/config/configuration.yml:ro
     depends_on:
       proxysql:
         condition: service_healthy

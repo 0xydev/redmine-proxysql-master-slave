@@ -1,0 +1,13 @@
+production:
+  secret_key_base: <%= ENV['SECRET_KEY_BASE'] %>
+  
+  email_delivery:
+    delivery_method: :smtp
+    smtp_settings:
+      address: localhost
+      port: 25
+      domain: localhost
+
+  attachments_storage_path: /usr/src/redmine/files
+
+  log_level: :info
