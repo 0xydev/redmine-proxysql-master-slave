@@ -52,6 +52,23 @@ password=$MYSQL_ROOT_PASSWORD
 EOF
 done
 
+# Database durumunu kontrol et
+check_db_initialized() {
+    local status=$(mysql --defaults-file=/tmp/master.cnf -N -s -e "
+        SELECT COUNT(*) FROM information_schema.tables 
+        WHERE table_schema='redmine' 
+        AND table_name='schema_migrations_status';")
+    
+    if [ "$status" -eq "1" ]; then
+        local migration_status=$(mysql --defaults-file=/tmp/master.cnf -N -s -e "
+            SELECT status FROM redmine.schema_migrations_status WHERE id=1;")
+        if [ "$migration_status" = "completed" ]; then
+            return 0
+        fi
+    fi
+    return 1
+}
+
 # Master kurulumu
 initialize_master() {
     log "Waiting for master..."
@@ -83,6 +100,33 @@ initialize_master() {
         FLUSH PRIVILEGES;
         SET SQL_LOG_BIN=1;"
     check_mysql_error
+
+    # Redmine database ve dump kontrolü
+    mysql --defaults-file=/tmp/master.cnf -e "CREATE DATABASE IF NOT EXISTS redmine CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+    check_mysql_error
+    
+    if [ -f "/redmine-dump.sql" ]; then
+        log "Found redmine-dump.sql, importing..."
+        mysql --defaults-file=/tmp/master.cnf redmine < /redmine-dump.sql
+        check_mysql_error
+        
+        # Migration durumunu kaydet
+        mysql --defaults-file=/tmp/master.cnf -e "
+            USE redmine;
+            CREATE TABLE IF NOT EXISTS schema_migrations_status (
+                id INT PRIMARY KEY AUTO_INCREMENT,
+                status VARCHAR(50),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            INSERT INTO schema_migrations_status (status) 
+            VALUES ('completed') 
+            ON DUPLICATE KEY UPDATE status='completed', created_at=CURRENT_TIMESTAMP;"
+        check_mysql_error
+        log "Dump import completed and migration status set"
+    else
+        log "No redmine-dump.sql found, database is ready for migrations"
+    fi
+    
     log "Master initialization completed"
 }
 
