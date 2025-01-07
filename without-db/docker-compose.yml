@@ -1,0 +1,269 @@
+services:
+  proxysql:
+    image: proxysql/proxysql:2.5.5
+    container_name: proxysql
+    hostname: proxysql
+    ports:
+      - "6032:6032"
+      - "6033:6033"
+    volumes:
+      - ../common/config/proxysql.cnf:/etc/proxysql.cnf:ro
+    healthcheck:
+      test: ["CMD", "mysql", "-h", "127.0.0.1", "-P", "6032", "-u", "admin", "-padmin", "-e", "SELECT 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    depends_on:
+      setup:
+        condition: service_completed_successfully
+
+  setup:
+    image: mysql:5.7
+    hostname: setup
+    container_name: setup
+    restart: "no"
+    entrypoint: /run.sh
+    volumes:
+      - ./run.sh:/run.sh
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+    depends_on:
+      master:
+        condition: service_healthy
+      slave1:
+        condition: service_healthy
+      slave2:
+        condition: service_healthy
+      slave3:
+        condition: service_healthy
+
+  master:
+    image: mysql:5.7
+    hostname: master
+    container_name: master
+    restart: always
+    command: >
+      --defaults-file=/etc/mysql/my.cnf
+      --server-id=1
+    volumes:
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+      - master_data:/var/lib/mysql
+      - ../common/config/my.cnf:/etc/mysql/my.cnf:ro
+      - ../common/config/1_network.cnf:/etc/mysql/conf.d/1_network.cnf:ro
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_USER: repl_user
+      MYSQL_PASSWORD: repl_pass123
+      TZ: Europe/Istanbul
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-proot_password"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 30s
+
+  slave1:
+    image: mysql:5.7
+    hostname: slave1
+    container_name: slave1
+    restart: always
+    command: >
+      --defaults-file=/etc/mysql/my.cnf
+      --server-id=2
+    volumes:
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+      - ../common/config/my.cnf:/etc/mysql/my.cnf:ro
+      - ../common/config/1_network.cnf:/etc/mysql/conf.d/1_network.cnf:ro
+      - ../common/config/slave.cnf:/etc/mysql/conf.d/slave.cnf:ro
+      - slave1_data:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_USER: repl_user
+      MYSQL_PASSWORD: repl_pass123
+      TZ: Europe/Istanbul
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-proot_password"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    depends_on:
+      master:
+        condition: service_healthy
+
+  slave2:
+    image: mysql:5.7
+    hostname: slave2
+    container_name: slave2
+    restart: always
+    command: >
+      --defaults-file=/etc/mysql/my.cnf
+      --server-id=3
+    volumes:
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+      - ../common/config/my.cnf:/etc/mysql/my.cnf:ro
+      - ../common/config/1_network.cnf:/etc/mysql/conf.d/1_network.cnf:ro
+      - ../common/config/slave.cnf:/etc/mysql/conf.d/slave.cnf:ro
+      - slave2_data:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_USER: repl_user
+      MYSQL_PASSWORD: repl_pass123
+      TZ: Europe/Istanbul
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-proot_password"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    depends_on:
+      master:
+        condition: service_healthy
+
+  slave3:
+    image: mysql:5.7
+    hostname: slave3
+    container_name: slave3
+    restart: always
+    command: >
+      --defaults-file=/etc/mysql/my.cnf
+      --server-id=4
+    volumes:
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+      - ../common/config/my.cnf:/etc/mysql/my.cnf:ro
+      - ../common/config/1_network.cnf:/etc/mysql/conf.d/1_network.cnf:ro
+      - ../common/config/slave.cnf:/etc/mysql/conf.d/slave.cnf:ro
+      - slave3_data:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_USER: repl_user
+      MYSQL_PASSWORD: repl_pass123
+      TZ: Europe/Istanbul
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-proot_password"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    depends_on:
+      master:
+        condition: service_healthy
+
+  nginx:
+    image: nginx:latest
+    container_name: nginx
+    hostname: nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ../common/config/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - redmine1
+      - redmine2
+      - redmine3
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  redmine1:
+    image: redmine:5.0.2
+    container_name: redmine1
+    hostname: redmine1
+    restart: unless-stopped
+    environment:
+      REDMINE_DB_HOST: proxysql
+      REDMINE_DB_PORT: 6033
+      REDMINE_DB_USERNAME: redmine
+      REDMINE_DB_PASSWORD: redmine_password
+      REDMINE_DB_DATABASE: redmine
+      REDMINE_DB_POOL: 25
+      REDMINE_DB_ENCODING: utf8mb4
+      TZ: Europe/Istanbul
+      RAILS_ENV: production
+      REDMINE_LANG: tr
+    volumes:
+      - ../volume/redmine1/redmine-plugins:/usr/src/redmine/plugins
+      - ../volume/redmine1/repos:/home/redmine/repos
+      - ../volume/redmine1/redmine-themes:/usr/src/redmine/public/themes
+      - ../volume/redmine1/redmine-data:/usr/src/redmine/files
+      - ../volume/redmine1/redmine-logs/redmine:/var/log/redmine
+    depends_on:
+      proxysql:
+        condition: service_healthy
+      setup:
+        condition: service_completed_successfully
+
+  redmine2:
+    image: redmine:5.0.2
+    container_name: redmine2
+    hostname: redmine2
+    restart: unless-stopped
+    environment:
+      REDMINE_DB_HOST: proxysql
+      REDMINE_DB_PORT: 6033
+      REDMINE_DB_USERNAME: redmine
+      REDMINE_DB_PASSWORD: redmine_password
+      REDMINE_DB_DATABASE: redmine
+      REDMINE_DB_POOL: 25
+      REDMINE_DB_ENCODING: utf8mb4
+      TZ: Europe/Istanbul
+      RAILS_ENV: production
+      REDMINE_LANG: tr
+    volumes:
+      - ../volume/redmine2/redmine-plugins:/usr/src/redmine/plugins
+      - ../volume/redmine2/repos:/home/redmine/repos
+      - ../volume/redmine2/redmine-themes:/usr/src/redmine/public/themes
+      - ../volume/redmine2/redmine-data:/usr/src/redmine/files
+      - ../volume/redmine2/redmine-logs/redmine:/var/log/redmine
+    depends_on:
+      proxysql:
+        condition: service_healthy
+      setup:
+        condition: service_completed_successfully
+
+  redmine3:
+    image: redmine:5.0.2
+    container_name: redmine3
+    hostname: redmine3
+    restart: unless-stopped
+    environment:
+      REDMINE_DB_HOST: proxysql
+      REDMINE_DB_PORT: 6033
+      REDMINE_DB_USERNAME: redmine
+      REDMINE_DB_PASSWORD: redmine_password
+      REDMINE_DB_DATABASE: redmine
+      REDMINE_DB_POOL: 25
+      REDMINE_DB_ENCODING: utf8mb4
+      TZ: Europe/Istanbul
+      RAILS_ENV: production
+      REDMINE_LANG: tr
+    volumes:
+      - ../volume/redmine3/redmine-plugins:/usr/src/redmine/plugins
+      - ../volume/redmine3/repos:/home/redmine/repos
+      - ../volume/redmine3/redmine-themes:/usr/src/redmine/public/themes
+      - ../volume/redmine3/redmine-data:/usr/src/redmine/files
+      - ../volume/redmine3/redmine-logs/redmine:/var/log/redmine
+    depends_on:
+      proxysql:
+        condition: service_healthy
+      setup:
+        condition: service_completed_successfully
+
+volumes:
+  master_data:
+  slave1_data:
+  slave2_data:
+  slave3_data:
+  redmine_files:
+  redmine_db:
+
+networks:
+  default:
+    name: mysql_network
