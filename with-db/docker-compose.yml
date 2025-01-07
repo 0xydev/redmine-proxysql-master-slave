@@ -184,6 +184,8 @@ services:
     entrypoint: ["/bin/sh", "-c", "
       gem install redis && \
       gem install redis-rails && \
+      bundle add redis-rails && \
+      bundle install && \
       rm -f /usr/src/redmine/config/initializers/migrations.rb && \
       bundle exec rails server -u puma -b 0.0.0.0"]
     environment:
@@ -229,6 +231,8 @@ services:
     entrypoint: ["/bin/sh", "-c", "
       gem install redis && \
       gem install redis-rails && \
+      bundle add redis-rails && \
+      bundle install && \
       rm -f /usr/src/redmine/config/initializers/migrations.rb && \
       bundle exec rails server -u puma -b 0.0.0.0"]
     environment:
