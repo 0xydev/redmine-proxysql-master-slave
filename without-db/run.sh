@@ -1,0 +1,175 @@
+#!/bin/bash
+set -x
+set -e
+
+# Log fonksiyonu
+log() {
+    echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $@"
+}
+
+# Hata kontrolü
+check_mysql_error() {
+    if [ $? -ne 0 ]; then
+        log "MySQL error occurred. Exiting..."
+        exit 1
+    fi
+}
+
+# MySQL hazır olana kadar bekle
+wait_for_mysql() {
+    local host=$1
+    local max_attempts=30
+    local attempt=1
+    
+    while [ $attempt -le $max_attempts ]; do
+        if mysqladmin ping -h"$host" -uroot -proot_password >/dev/null 2>&1; then
+            log "$host is ready"
+            return 0
+        fi
+        log "Waiting for $host to be ready... (attempt $attempt/$max_attempts)"
+        attempt=$((attempt + 1))
+        sleep 2
+    done
+    
+    log "Timeout waiting for $host"
+    return 1
+}
+
+# Config dosyaları oluştur
+cat << EOF > /tmp/master.cnf
+[client]
+host=master
+user=root
+password=$MYSQL_ROOT_PASSWORD
+EOF
+
+for i in 1 2 3; do
+    cat << EOF > /tmp/slave$i.cnf
+[client]
+host=slave$i
+user=root
+password=$MYSQL_ROOT_PASSWORD
+EOF
+done
+
+# Master kurulumu
+initialize_master() {
+    log "Waiting for master..."
+    wait_for_mysql "master"
+    
+    log "Initializing master..."
+    mysql --defaults-file=/tmp/master.cnf -e "
+        RESET MASTER;
+        SET SQL_LOG_BIN=0;
+        
+        # Monitor kullanıcısını oluştur
+        DROP USER IF EXISTS 'monitor'@'%';
+        CREATE USER 'monitor'@'%' IDENTIFIED BY 'monitor';
+        GRANT REPLICATION CLIENT ON *.* TO 'monitor'@'%';
+        GRANT SELECT ON *.* TO 'monitor'@'%';
+        GRANT SUPER ON *.* TO 'monitor'@'%';
+        GRANT PROCESS ON *.* TO 'monitor'@'%';
+        
+        # Replikasyon kullanıcısını oluştur
+        DROP USER IF EXISTS 'repl_user'@'%';
+        CREATE USER 'repl_user'@'%' IDENTIFIED BY 'repl_pass123';
+        GRANT REPLICATION SLAVE ON *.* TO 'repl_user'@'%';
+        
+        # Redmine kullanıcısını oluştur
+        DROP USER IF EXISTS 'redmine'@'%';
+        CREATE USER 'redmine'@'%' IDENTIFIED BY 'redmine_password';
+        GRANT ALL PRIVILEGES ON *.* TO 'redmine'@'%';
+        
+        FLUSH PRIVILEGES;
+        SET SQL_LOG_BIN=1;"
+    check_mysql_error
+
+    # Redmine database oluştur
+    mysql --defaults-file=/tmp/master.cnf -e "CREATE DATABASE IF NOT EXISTS redmine CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+    check_mysql_error
+    
+    log "Master initialization completed"
+}
+
+# Slave kurulumu
+initialize_slave() {
+    local slave_num=$1
+    log "Waiting for slave$slave_num..."
+    wait_for_mysql "slave$slave_num"
+    
+    log "Initializing slave$slave_num..."
+    mysql --defaults-file=/tmp/slave$slave_num.cnf -e "
+        STOP SLAVE;
+        RESET SLAVE ALL;
+        
+        # Monitor kullanıcısını oluştur
+        DROP USER IF EXISTS 'monitor'@'%';
+        CREATE USER 'monitor'@'%' IDENTIFIED BY 'monitor';
+        GRANT REPLICATION CLIENT ON *.* TO 'monitor'@'%';
+        GRANT SELECT ON *.* TO 'monitor'@'%';
+        GRANT PROCESS ON *.* TO 'monitor'@'%';
+        
+        # Redmine kullanıcısını oluştur
+        DROP USER IF EXISTS 'redmine'@'%';
+        CREATE USER 'redmine'@'%' IDENTIFIED BY 'redmine_password';
+        GRANT ALL PRIVILEGES ON *.* TO 'redmine'@'%';
+        
+        # Replikasyon ayarlarını yap
+        CHANGE MASTER TO 
+            MASTER_HOST='master',
+            MASTER_USER='repl_user',
+            MASTER_PASSWORD='repl_pass123',
+            MASTER_AUTO_POSITION=1;
+        
+        FLUSH PRIVILEGES;
+        
+        # Replikasyonu başlat
+        START SLAVE;
+        
+        # Read-only ayarlarını aktifleştir
+        SET GLOBAL read_only=1;
+        SET GLOBAL super_read_only=1;"
+    check_mysql_error
+    
+    # Slave durumunun stabil olması için bekle
+    sleep 5
+    
+    # Slave durumunu kontrol et ve logla
+    log "Checking status of slave$slave_num..."
+    mysql --defaults-file=/tmp/slave$slave_num.cnf -e "
+        SHOW SLAVE STATUS\G;
+        SHOW VARIABLES LIKE '%read_only%';"
+    
+    # Replikasyon durumunu kontrol et
+    local slave_status=$(mysql --defaults-file=/tmp/slave$slave_num.cnf -N -e "
+        SELECT 
+            Slave_IO_Running = 'Yes' AND 
+            Slave_SQL_Running = 'Yes' AND 
+            @@global.read_only = 1 AND 
+            @@global.super_read_only = 1
+        FROM performance_schema.replication_applier_status 
+        LIMIT 1;")
+    
+    if [ "$slave_status" != "1" ]; then
+        log "WARNING: Slave$slave_num might not be properly configured. Please check the logs."
+    else
+        log "Slave$slave_num initialization completed successfully"
+    fi
+}
+
+# Ana akış
+log "Starting setup process without database dump..."
+initialize_master
+
+for i in 1 2 3; do
+    initialize_slave $i
+done
+
+log "Checking replication status..."
+sleep 10
+
+for i in 1 2 3; do
+    mysql --defaults-file=/tmp/slave$i.cnf -e "SHOW SLAVE STATUS\G"
+done
+
+log "Setup completed successfully!"

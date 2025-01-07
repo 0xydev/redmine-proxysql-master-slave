@@ -101,10 +101,11 @@ initialize_master() {
         SET SQL_LOG_BIN=1;"
     check_mysql_error
 
-    # Redmine database ve dump kontrolü
+    # Redmine database oluştur
     mysql --defaults-file=/tmp/master.cnf -e "CREATE DATABASE IF NOT EXISTS redmine CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
     check_mysql_error
     
+    # Dump varsa import et ve migration durumunu işaretle
     if [ -f "/redmine-dump.sql" ]; then
         log "Found redmine-dump.sql, importing..."
         mysql --defaults-file=/tmp/master.cnf redmine < /redmine-dump.sql
@@ -124,7 +125,8 @@ initialize_master() {
         check_mysql_error
         log "Dump import completed and migration status set"
     else
-        log "No redmine-dump.sql found, database is ready for migrations"
+        log "No redmine-dump.sql found. Please make sure dump file exists!"
+        exit 1
     fi
     
     log "Master initialization completed"
@@ -197,7 +199,7 @@ initialize_slave() {
 }
 
 # Ana akış
-log "Starting setup process..."
+log "Starting setup process with database dump..."
 initialize_master
 
 for i in 1 2 3; do
