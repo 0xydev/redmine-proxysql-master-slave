@@ -177,7 +177,9 @@ services:
       retries: 3
 
   redmine1:
-    image: redmine:5.0.2
+    build:
+      context: .
+      dockerfile: Dockerfile.502
     container_name: redmine1
     hostname: redmine1
     restart: unless-stopped
@@ -198,6 +200,8 @@ services:
       SKIP_RAKE_TASKS: "true"
       DISABLE_DATABASE_ENVIRONMENT_CHECK: "1"
       SECRET_KEY_BASE: "some-really-really-long-secret-key-base-123456789"
+      REDMINE_REDIS_HOST: "redis"
+      REDMINE_REDIS_PORT: 6379
     volumes:
       - ../volume/redmine-plugins:/usr/src/redmine/plugins
       - ../volume/repos:/home/redmine/repos
@@ -214,7 +218,9 @@ services:
         condition: service_completed_successfully
 
   redmine2:
-    image: redmine:5.0.2
+    build:
+      context: .
+      dockerfile: Dockerfile.502
     container_name: redmine2
     hostname: redmine2
     restart: unless-stopped
@@ -235,6 +241,8 @@ services:
       SKIP_RAKE_TASKS: "true"
       DISABLE_DATABASE_ENVIRONMENT_CHECK: "1"
       SECRET_KEY_BASE: "some-really-really-long-secret-key-base-123456789"
+      REDMINE_REDIS_HOST: "redis"
+      REDMINE_REDIS_PORT: 6379
     volumes:
       - ../volume/redmine-plugins:/usr/src/redmine/plugins
       - ../common/config/additional_environment.rb:/usr/src/redmine/config/additional_environment.rb
@@ -251,7 +259,9 @@ services:
         condition: service_completed_successfully
 
   redmine3:
-    image: redmine:5.0.2
+    build:
+      context: .
+      dockerfile: Dockerfile.502
     container_name: redmine3
     hostname: redmine3
     restart: unless-stopped
@@ -272,6 +282,8 @@ services:
       SKIP_RAKE_TASKS: "true"
       DISABLE_DATABASE_ENVIRONMENT_CHECK: "1"
       SECRET_KEY_BASE: "some-really-really-long-secret-key-base-123456789"
+      REDMINE_REDIS_HOST: "redis"
+      REDMINE_REDIS_PORT: 6379
     volumes:
       - ../volume/redmine-plugins:/usr/src/redmine/plugins
       - ../volume/repos:/home/redmine/repos
@@ -286,6 +298,21 @@ services:
         condition: service_healthy
       setup:
         condition: service_completed_successfully
+  redis:
+    image: redis:latest
+    container_name: redis
+    hostname: redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    # Eğer bir healthcheck tanımlamak isterseniz:
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
 volumes:
   master_data:
@@ -294,6 +321,7 @@ volumes:
   slave3_data:
   redmine_files:
   redmine_db:
+  redis_data:
 
 networks:
   default:

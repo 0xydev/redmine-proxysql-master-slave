@@ -1,0 +1,29 @@
+# Dockerfile.502
+FROM redmine:5.0.2
+
+# Sistem paketlerini kuruyoruz (örnek: derleme araçları, git, nodejs vs. gerekebilir)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+      build-essential \
+      git \
+      nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /usr/src/redmine
+
+# Sidekiq gem'ini Gemfile'a ekliyoruz
+RUN echo "gem 'sidekiq'" >> Gemfile
+
+# Bundle install (development/test gruplarını dahil etmeden)
+RUN bundle install --without development test
+
+# Sidekiq konfigürasyon dosyasını (sidekiq.yml) kopyalayın
+# Örn: "with-db/config/sidekiq.yml" şeklinde bir dosyanız olduğunu varsayıyoruz
+COPY config/sidekiq.yml /usr/src/redmine/config/sidekiq.yml
+
+# Entrypoint script'imizi ekliyoruz
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+# Bu konteyner ayağa kalkarken docker-entrypoint.sh çalışacak
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
