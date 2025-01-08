@@ -181,11 +181,9 @@ services:
     container_name: redmine1
     hostname: redmine1
     restart: unless-stopped
+    working_dir: /usr/src/redmine
     entrypoint: ["/bin/sh", "-c", "
-      gem install redis && \
-      gem install redis-rails && \
       bundle add redis-rails && \
-      bundle install && \
       rm -f /usr/src/redmine/config/initializers/migrations.rb && \
       bundle exec rails server -u puma -b 0.0.0.0"]
     environment:
@@ -228,11 +226,9 @@ services:
     container_name: redmine2
     hostname: redmine2
     restart: unless-stopped
+    working_dir: /usr/src/redmine
     entrypoint: ["/bin/sh", "-c", "
-      gem install redis && \
-      gem install redis-rails && \
       bundle add redis-rails && \
-      bundle install && \
       rm -f /usr/src/redmine/config/initializers/migrations.rb && \
       bundle exec rails server -u puma -b 0.0.0.0"]
     environment:
@@ -275,11 +271,9 @@ services:
     container_name: redmine3
     hostname: redmine3
     restart: unless-stopped
+    working_dir: /usr/src/redmine
     entrypoint: ["/bin/sh", "-c", "
-      gem install redis && \
-      gem install redis-rails && \
       bundle add redis-rails && \
-      bundle install && \
       rm -f /usr/src/redmine/config/initializers/migrations.rb && \
       bundle exec rails server -u puma -b 0.0.0.0"]
     environment:
