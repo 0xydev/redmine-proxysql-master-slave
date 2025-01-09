@@ -331,7 +331,7 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
-  
+  # https://deniz-turkmen.medium.com/promethues-grafana-a9c6a877803b
   prometheus:
     image: prom/prometheus:latest
     container_name: monitoring_prometheus
@@ -367,7 +367,7 @@ services:
   #     - "9104:9104"
 
   # mysql-exporter:
-  #   image: quay.io/prometheus/mysqld-exporter
+  #   image: prom/mysqld-exporter:latest
   #   container_name: mysql_exporter
   #   hostname: mysql_exporter
   #   environment:
@@ -397,7 +397,7 @@ services:
       - "3000:3000"
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin
-      - GF_SMTP_FROM_ADDRESS=furkankursunlu@hotmail.com
+      - GF_SMTP_FROM_ADDRESS=example@example.com
 
 volumes:
   master_data:
