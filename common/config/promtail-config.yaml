@@ -1,0 +1,35 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: redmine_logs
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: redmine1
+          __path__: /var/log/redmine/redmine1/*.log
+      - targets:
+          - localhost
+        labels:
+          job: redmine2
+          __path__: /var/log/redmine/redmine2/*.log
+      - targets:
+          - localhost
+        labels:
+          job: redmine3
+          __path__: /var/log/redmine/redmine3/*.log
+    pipeline_stages:
+      - regex:
+          expression: '^(?P<timestamp>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) (?P<level>[A-Z]+) -- : (?P<message>.*)$'
+      - labels:
+          timestamp:
+          level:
+          message: 

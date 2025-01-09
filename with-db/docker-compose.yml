@@ -182,10 +182,6 @@ services:
     hostname: redmine1
     restart: unless-stopped
     working_dir: /usr/src/redmine
-    entrypoint: ["/bin/sh", "-c", "
-      bundle add redis-rails && \
-      rm -f /usr/src/redmine/config/initializers/migrations.rb && \
-      bundle exec rails server -u puma -b 0.0.0.0"]
     environment:
       REDMINE_DB_HOST: proxysql
       REDMINE_DB_PORT: 6033
@@ -197,22 +193,22 @@ services:
       TZ: Europe/Istanbul
       RAILS_ENV: production
       REDMINE_LANG: tr
-      SKIP_DATABASE_MIGRATION: "true"
-      RAILS_SKIP_MIGRATIONS: "true"
-      SKIP_RAKE_TASKS: "true"
       DISABLE_DATABASE_ENVIRONMENT_CHECK: "1"
       SECRET_KEY_BASE: "some-really-really-long-secret-key-base-123456789"
     volumes:
       - ../volume/redmine-plugins:/usr/src/redmine/plugins
       - ../volume/repos:/home/redmine/repos
-      - ../common/config/additional_environment.rb:/usr/src/redmine/config/additional_environment.rb
+      - ../common/config/additional_environment.rb:/usr/src/redmine/config/additional_environment.rb:ro
       - ../volume/redmine-themes:/usr/src/redmine/public/themes
       - ../volume/redmine-data:/usr/src/redmine/files
-      - ../volume/redmine-logs/redmine:/var/log/redmine
-      - ../common/config/database.yml:/usr/src/redmine/config/database.yml:ro
-      - ../common/config/configuration.yml:/usr/src/redmine/config/configuration.yml:ro
-      - ../common/config/initializers/redis_session_store.rb:/usr/src/redmine/config/initializers/redis_session_store.rb
-
+      - ../volume/redmine-logs/redmine1:/var/log/redmine
+      - type: bind
+        source: ../common/config/database.yml
+        target: /usr/src/redmine/config/database.yml
+      - type: bind
+        source: ../common/config/configuration.yml
+        target: /usr/src/redmine/config/configuration.yml
+      - ../common/config/initializers/redis_session_store.rb:/usr/src/redmine/config/initializers/redis_session_store.rb:ro
     depends_on:
       proxysql:
         condition: service_healthy
@@ -220,6 +216,10 @@ services:
         condition: service_completed_successfully
       redis:
         condition: service_healthy
+    entrypoint: ["/bin/sh", "-c", "
+      bundle add redis-rails --version '~> 5.0' && \
+      rm -f /usr/src/redmine/config/initializers/migrations.rb && \
+      bundle exec rails server -u puma -b 0.0.0.0"]
 
   redmine2:
     image: redmine:5.0.2
@@ -227,10 +227,6 @@ services:
     hostname: redmine2
     restart: unless-stopped
     working_dir: /usr/src/redmine
-    entrypoint: ["/bin/sh", "-c", "
-      bundle add redis-rails && \
-      rm -f /usr/src/redmine/config/initializers/migrations.rb && \
-      bundle exec rails server -u puma -b 0.0.0.0"]
     environment:
       REDMINE_DB_HOST: proxysql
       REDMINE_DB_PORT: 6033
@@ -242,22 +238,22 @@ services:
       TZ: Europe/Istanbul
       RAILS_ENV: production
       REDMINE_LANG: tr
-      SKIP_DATABASE_MIGRATION: "true"
-      RAILS_SKIP_MIGRATIONS: "true"
-      SKIP_RAKE_TASKS: "true"
       DISABLE_DATABASE_ENVIRONMENT_CHECK: "1"
       SECRET_KEY_BASE: "some-really-really-long-secret-key-base-123456789"
     volumes:
       - ../volume/redmine-plugins:/usr/src/redmine/plugins
-      - ../common/config/additional_environment.rb:/usr/src/redmine/config/additional_environment.rb
       - ../volume/repos:/home/redmine/repos
+      - ../common/config/additional_environment.rb:/usr/src/redmine/config/additional_environment.rb:ro
       - ../volume/redmine-themes:/usr/src/redmine/public/themes
       - ../volume/redmine-data:/usr/src/redmine/files
-      - ../volume/redmine-logs/redmine:/var/log/redmine
-      - ../common/config/database.yml:/usr/src/redmine/config/database.yml:ro
-      - ../common/config/configuration.yml:/usr/src/redmine/config/configuration.yml:ro
-      - ../common/config/initializers/redis_session_store.rb:/usr/src/redmine/config/initializers/redis_session_store.rb
-
+      - ../volume/redmine-logs/redmine2:/var/log/redmine
+      - type: bind
+        source: ../common/config/database.yml
+        target: /usr/src/redmine/config/database.yml
+      - type: bind
+        source: ../common/config/configuration.yml
+        target: /usr/src/redmine/config/configuration.yml
+      - ../common/config/initializers/redis_session_store.rb:/usr/src/redmine/config/initializers/redis_session_store.rb:ro
     depends_on:
       proxysql:
         condition: service_healthy
@@ -265,6 +261,10 @@ services:
         condition: service_completed_successfully
       redis:
         condition: service_healthy
+    entrypoint: ["/bin/sh", "-c", "
+      bundle add redis-rails --version '~> 5.0' && \
+      rm -f /usr/src/redmine/config/initializers/migrations.rb && \
+      bundle exec rails server -u puma -b 0.0.0.0"]
 
   redmine3:
     image: redmine:5.0.2
@@ -272,10 +272,6 @@ services:
     hostname: redmine3
     restart: unless-stopped
     working_dir: /usr/src/redmine
-    entrypoint: ["/bin/sh", "-c", "
-      bundle add redis-rails && \
-      rm -f /usr/src/redmine/config/initializers/migrations.rb && \
-      bundle exec rails server -u puma -b 0.0.0.0"]
     environment:
       REDMINE_DB_HOST: proxysql
       REDMINE_DB_PORT: 6033
@@ -287,21 +283,22 @@ services:
       TZ: Europe/Istanbul
       RAILS_ENV: production
       REDMINE_LANG: tr
-      SKIP_DATABASE_MIGRATION: "true"
-      RAILS_SKIP_MIGRATIONS: "true"
-      SKIP_RAKE_TASKS: "true"
       DISABLE_DATABASE_ENVIRONMENT_CHECK: "1"
       SECRET_KEY_BASE: "some-really-really-long-secret-key-base-123456789"
     volumes:
       - ../volume/redmine-plugins:/usr/src/redmine/plugins
       - ../volume/repos:/home/redmine/repos
-      - ../common/config/additional_environment.rb:/usr/src/redmine/config/additional_environment.rb
+      - ../common/config/additional_environment.rb:/usr/src/redmine/config/additional_environment.rb:ro
       - ../volume/redmine-themes:/usr/src/redmine/public/themes
       - ../volume/redmine-data:/usr/src/redmine/files
-      - ../volume/redmine-logs/redmine:/var/log/redmine
-      - ../common/config/database.yml:/usr/src/redmine/config/database.yml:ro
-      - ../common/config/configuration.yml:/usr/src/redmine/config/configuration.yml:ro
-      - ../common/config/initializers/redis_session_store.rb:/usr/src/redmine/config/initializers/redis_session_store.rb
+      - ../volume/redmine-logs/redmine3:/var/log/redmine
+      - type: bind
+        source: ../common/config/database.yml
+        target: /usr/src/redmine/config/database.yml
+      - type: bind
+        source: ../common/config/configuration.yml
+        target: /usr/src/redmine/config/configuration.yml
+      - ../common/config/initializers/redis_session_store.rb:/usr/src/redmine/config/initializers/redis_session_store.rb:ro
     depends_on:
       proxysql:
         condition: service_healthy
@@ -309,6 +306,10 @@ services:
         condition: service_completed_successfully
       redis:
         condition: service_healthy
+    entrypoint: ["/bin/sh", "-c", "
+      bundle add redis-rails --version '~> 5.0' && \
+      rm -f /usr/src/redmine/config/initializers/migrations.rb && \
+      bundle exec rails server -u puma -b 0.0.0.0"]
 
   redis:
     image: redis:latest
@@ -326,6 +327,67 @@ services:
       timeout: 3s
       retries: 5
 
+  loki:
+    image: grafana/loki:2.8.0
+    container_name: loki
+    user: "root"
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - ../common/config/loki-config.yaml:/etc/loki/local-config.yaml:ro
+      - loki_data:/loki
+      - loki_wal:/wal
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --try-connect-timeout=1 -O - http://localhost:3100/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    depends_on:
+      redmine1:
+        condition: service_started
+      redmine2:
+        condition: service_started
+      redmine3:
+        condition: service_started
+    restart: unless-stopped
+
+  promtail:
+    image: grafana/promtail:2.8.0
+    container_name: promtail
+    volumes:
+      - ../volume/redmine-logs:/var/log/redmine:ro
+      - ../common/config/promtail-config.yaml:/etc/promtail/config.yml:ro
+    command: -config.file=/etc/promtail/config.yml
+    depends_on:
+      loki:
+        condition: service_healthy
+      redmine1:
+        condition: service_started
+      redmine2:
+        condition: service_started
+      redmine3:
+        condition: service_started
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ../common/config/grafana-dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ../common/config/grafana-datasources:/etc/grafana/provisioning/datasources:ro
+    depends_on:
+      loki:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   master_data:
   slave1_data:
@@ -334,6 +396,9 @@ volumes:
   redmine_files:
   redmine_db:
   redis_data:
+  grafana_data:
+  loki_data:
+  loki_wal:
 
 networks:
   default:
