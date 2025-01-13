@@ -201,7 +201,7 @@ services:
       DISABLE_DATABASE_ENVIRONMENT_CHECK: "1"
       SECRET_KEY_BASE: "some-really-really-long-secret-key-base-123456789"
     volumes:
-      - ../volume/redmine-logs:/var/log/redmine
+      - ../volume/redmine-logs:/var/log/redmine:rw
       - ../volume/redmine-plugins:/usr/src/redmine/plugins
       - ../volume/repos:/home/redmine/repos
       - ../common/config/additional_environment.rb:/usr/src/redmine/config/additional_environment.rb
@@ -244,7 +244,7 @@ services:
       DISABLE_DATABASE_ENVIRONMENT_CHECK: "1"
       SECRET_KEY_BASE: "some-really-really-long-secret-key-base-123456789"
     volumes:
-      - ../volume/redmine-logs:/var/log/redmine
+      - ../volume/redmine-logs:/var/log/redmine:rw
       - ../volume/redmine-plugins:/usr/src/redmine/plugins
       - ../common/config/additional_environment.rb:/usr/src/redmine/config/additional_environment.rb
       - ../volume/repos:/home/redmine/repos
@@ -287,7 +287,7 @@ services:
       DISABLE_DATABASE_ENVIRONMENT_CHECK: "1"
       SECRET_KEY_BASE: "some-really-really-long-secret-key-base-123456789"
     volumes:
-      - ../volume/redmine-logs:/var/log/redmine
+      - ../volume/redmine-logs:/var/log/redmine:rw
       - ../volume/redmine-plugins:/usr/src/redmine/plugins
       - ../volume/repos:/home/redmine/repos
       - ../common/config/additional_environment.rb:/usr/src/redmine/config/additional_environment.rb
@@ -423,13 +423,32 @@ services:
     volumes:
       - ../common/config/promtail.yaml:/etc/promtail/config.yaml
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
-      - ../volume/redmine-logs:/var/log/redmine:ro
+      - ../volume/redmine-logs:/var/log/redmine:rw
       - /var/log/nginx:/var/log/nginx:ro
     command: -config.file=/etc/promtail/config.yaml
     depends_on:
       - loki
     networks:
       - default
+  
+  backup:
+    image: alpine:3.17
+    container_name: backup_container
+    hostname: backup_container
+    restart: unless-stopped
+    # backup-scripts klasörünüzü container içinde /scripts olarak mount
+    volumes:
+      - ../common/backup-scripts:/scripts:ro       # script'ler read-only
+      - ../volume/backups:/db_backups            # yedek dosyaları bu volume'a
+    depends_on:
+      - proxysql       # yedeği proxysql üzerinden alıyoruz
+    command: /bin/sh -c "apk update && apk add --no-cache mariadb-client && /scripts/entrypoint.sh"
+    environment:
+      - MYSQL_HOST=proxysql
+      - MYSQL_PORT=6033
+      - MYSQL_USER=backup_user
+      - MYSQL_PASSWORD=backup_pass
+      - MYSQL_DATABASE=redmine
 
 volumes:
   master_data:
@@ -442,6 +461,7 @@ volumes:
   loki_data:
   grafana_data:
   prometheus_data:
+  backup_data:
   
 networks:
   default:
