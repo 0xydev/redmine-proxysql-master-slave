@@ -326,9 +326,12 @@ services:
     hostname: monitoring_prometheus
     restart: unless-stopped
     volumes:
+       - ../volume/prometheus_data:/prometheus
        - ../common/config/prometheus.yml:/etc/prometheus/prometheus.yml
     command:
        - '--config.file=/etc/prometheus/prometheus.yml'
+       - '--storage.tsdb.path=/prometheus'
+       - '--storage.tsdb.retention.time=365d'
     expose:
        - 9090
     ports:
@@ -375,17 +378,27 @@ services:
      - "--mysqld.address=proxysql:6033"
 
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:11.4.0
     container_name: monitoring_grafana
     hostname: monitoring_grafana
     restart: unless-stopped
-    depends_on:
-      - prometheus
     ports:
       - "3000:3000"
     environment:
+      - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_LOG_MODE=console file
+      - GF_LOG_LEVEL=info
       - GF_SMTP_FROM_ADDRESS=example@example.com
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ../common/config/grafana/provisioning:/etc/grafana/provisioning
+    depends_on:
+      - loki
+      - prometheus
+    networks:
+      - default
 
   loki:
     image: grafana/loki:2.9.0
@@ -418,25 +431,6 @@ services:
     networks:
       - default
 
-  grafana:
-    image: grafana/grafana:10.0.0
-    container_name: grafana
-    ports:
-      - "3000:3000"
-    environment:
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=admin
-      - GF_USERS_ALLOW_SIGN_UP=false
-      - GF_LOG_MODE=console file
-      - GF_LOG_LEVEL=info
-    volumes:
-      - grafana_data:/var/lib/grafana
-      - ../common/config/grafana/provisioning:/etc/grafana/provisioning
-    depends_on:
-      - loki
-    networks:
-      - default
-
 volumes:
   master_data:
   slave1_data:
@@ -447,7 +441,8 @@ volumes:
   redis_data:
   loki_data:
   grafana_data:
-
+  prometheus_data:
+  
 networks:
   default:
     name: mysql_network
