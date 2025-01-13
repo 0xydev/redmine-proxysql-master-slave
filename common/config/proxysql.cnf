@@ -89,6 +89,14 @@ mysql_users =
         max_connections=1000
         active = 1
         transaction_persistent=1
+    },
+    {
+        username = "monitor"
+        password = "monitor"
+        default_hostgroup = 10
+        max_connections=1000
+        active = 1
+        transaction_persistent=1
     }
 )
 

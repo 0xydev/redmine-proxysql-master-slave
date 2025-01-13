@@ -14,4 +14,3 @@ production:
       domain: localhost
 
   attachments_storage_path: /usr/src/redmine/files
-  log_level: :debug
