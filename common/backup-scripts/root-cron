@@ -1,0 +1,3 @@
+# Her gece 03:00'da db_backup.sh çalışsın
+# 0 3 * * * /scripts/db_backup.sh >> /db_backups/db_backup.log 2>&1
+*/3 * * * * /scripts/db_backup.sh >> /db_backups/db_backup.log 2>&1
