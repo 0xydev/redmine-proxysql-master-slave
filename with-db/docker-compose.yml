@@ -444,8 +444,8 @@ services:
       - proxysql       # yedeği proxysql üzerinden alıyoruz
     command: /bin/sh -c "apk update && apk add --no-cache mariadb-client && /scripts/entrypoint.sh"
     environment:
-      - MYSQL_HOST=proxysql
-      - MYSQL_PORT=6033
+      - MYSQL_HOST=slave3
+      - MYSQL_PORT=3306 
       - MYSQL_USER=backup_user
       - MYSQL_PASSWORD=backup_pass
       - MYSQL_DATABASE=redmine

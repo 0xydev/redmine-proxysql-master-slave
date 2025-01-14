@@ -159,6 +159,11 @@ initialize_slave() {
         DROP USER IF EXISTS 'redmine'@'%';
         CREATE USER 'redmine'@'%' IDENTIFIED BY 'redmine_password';
         GRANT ALL PRIVILEGES ON *.* TO 'redmine'@'%';
+
+        # ----- YENİ: Backup kullanıcısı oluştur -----
+        DROP USER IF EXISTS 'backup_user'@'%';
+        CREATE USER 'backup_user'@'%' IDENTIFIED BY 'backup_pass';
+        GRANT SELECT, LOCK TABLES, SHOW VIEW, TRIGGER, RELOAD, REPLICATION CLIENT ON *.* TO 'backup_user'@'%';
         
         # Replikasyon ayarlarını yap
         CHANGE MASTER TO 
