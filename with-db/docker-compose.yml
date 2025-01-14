@@ -325,7 +325,7 @@ services:
     container_name: monitoring_prometheus
     hostname: monitoring_prometheus
     restart: unless-stopped
-    user: "65534:65534"  # nobody:nobody kullanıcısı
+    user: root
     volumes:
       - ../volume/prometheus_data:/prometheus
       - ../common/config/prometheus.yml:/etc/prometheus/prometheus.yml
@@ -333,10 +333,27 @@ services:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
       - '--storage.tsdb.retention.time=365d'
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+      - '--web.external-url=http://localhost:9090'
+      - '--web.route-prefix=/'
     expose:
       - 9090
     ports:
       - 9090:9090
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    networks:
+      - default
+    depends_on:
+      mysql-exporter:
+        condition: service_started
+      node-exporter:
+        condition: service_started
 
   node-exporter:
       image: prom/node-exporter:latest
@@ -391,13 +408,20 @@ services:
       - GF_USERS_ALLOW_SIGN_UP=false
       - GF_LOG_MODE=console file
       - GF_LOG_LEVEL=info
-      - GF_SMTP_FROM_ADDRESS=example@example.com
+      - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-simple-json-datasource
+      - GF_PATHS_PROVISIONING=/etc/grafana/provisioning
+      - GF_SERVER_ROOT_URL=http://localhost:3000
     volumes:
       - grafana_data:/var/lib/grafana
       - ../common/config/grafana/provisioning:/etc/grafana/provisioning
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --tries=1 -O- http://localhost:3000/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
     depends_on:
-      - loki
-      - prometheus
+      prometheus:
+        condition: service_healthy
     networks:
       - default
 
@@ -452,37 +476,39 @@ services:
       - MYSQL_DATABASE=redmine
 
   cadvisor:
-    image: gcr.io/cadvisor/cadvisor:v0.47.2
+    image: gcr.io/cadvisor/cadvisor:v0.51.0
     container_name: monitoring_cadvisor
     hostname: monitoring_cadvisor
     privileged: true
-    devices:
-      - /dev/kmsg:/dev/kmsg
     volumes:
       - /:/rootfs:ro
-      - /var/run:/var/run:ro
+      - /var/run:/var/run:rw
       - /sys:/sys:ro
       - /var/lib/docker/:/var/lib/docker:ro
       - /dev/disk/:/dev/disk:ro
+      - /sys/fs/cgroup:/cgroup:ro
       - /etc/machine-id:/etc/machine-id:ro
-      - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
+    devices:
+      - /dev/kmsg:/dev/kmsg
     restart: unless-stopped
     expose:
-      - 8585
+      - 8080
     ports:
-      - "8585:8585"
+      - "8585:8080"
     networks:
       - default
-    depends_on:
-      - prometheus
     command:
-      - --port=8585
-      - --disable_metrics=percpu,sched,tcp,udp,disk,diskIO,hugetlb,referenced_memory
-      - --docker_only=true
-      - --housekeeping_interval=30s
+      - "--housekeeping_interval=30s"
+      - "--docker_only=true"
+      - "--disable_metrics=percpu,sched,tcp,udp,disk,diskIO,hugetlb,referenced_memory,cpu_topology,resctrl"
     environment:
       - TZ=Europe/Istanbul
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
 volumes:
   master_data:
